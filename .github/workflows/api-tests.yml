@@ -1,0 +1,51 @@
+name: API Tests
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Start application
+      run: |
+        docker compose -f docker-compose.ci.yml up -d
+        sleep 10
+      env:
+        MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+        MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+
+    - name: Wait for MariaDB
+      run: |
+        echo "Waiting for MariaDB..."
+        timeout 120 bash -c 'until docker compose -f docker-compose.ci.yml exec -T mariadb mysqladmin ping -uroot -p${{ secrets.MYSQL_ROOT_PASSWORD }} --silent 2>/dev/null; do sleep 5; done'
+
+    - name: Seed database
+      run: |
+        docker compose -f docker-compose.ci.yml exec -T laravel-api php artisan migrate:fresh --seed --force
+        docker compose -f docker-compose.ci.yml exec -T laravel-api php artisan cache:clear
+
+    - name: Wait for API
+      run: |
+        echo "Waiting for API..."
+        timeout 120 bash -c 'until [ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8091/products)" = "200" ]; do echo "HTTP $(curl -s -o /dev/null -w "%{http_code}" http://localhost:8091/products), retrying..."; sleep 5; done'
+
+    - uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Run API tests
+      run: mvn test
+
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: surefire-reports
+        path: target/surefire-reports/
+        retention-days: 30

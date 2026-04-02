@@ -1,0 +1,36 @@
+services:
+  laravel-api:
+    image: testsmith/practice-software-testing-sprint5-api
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_DATABASE: toolshop
+      DB_USERNAME: user
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DISABLE_LOGGING: false
+      MAIL_MAILER: log
+    volumes:
+      - laravel-app-code:/var/www
+    depends_on:
+      - mariadb
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "8091:80"
+    volumes:
+      - laravel-app-code:/var/www
+      - ./nginx.ci.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - laravel-api
+
+  mariadb:
+    image: yobasystems/alpine-mariadb:10.6.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: user
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: toolshop
+
+volumes:
+  laravel-app-code:

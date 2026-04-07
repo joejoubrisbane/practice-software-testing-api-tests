@@ -8,7 +8,6 @@ import io.restassured.path.json.config.JsonPathConfig;
 import io.restassured.specification.RequestSpecification;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.List;
 import java.util.Map;
@@ -38,6 +37,7 @@ public class ProductTests {
                 .when()
                 .post("/users/login")
                 .then()
+                .log().ifValidationFails()
                 .statusCode(200)
                 .extract().path("access_token");
 
@@ -54,6 +54,7 @@ public class ProductTests {
                     .when()
                     .get("/products")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(200)
                     .extract().jsonPath().getList("data.id");
 
@@ -62,6 +63,7 @@ public class ProductTests {
                         .when()
                         .delete("/products/{id}", id)
                         .then()
+                        .log().ifValidationFails()
                         .statusCode(204);
             }
         } while (!ids.isEmpty());
@@ -72,6 +74,7 @@ public class ProductTests {
                 .when()
                 .get("/categories")
                 .then()
+                .log().ifValidationFails()
                 .statusCode(200)
                 .extract().path("[0].id");
         assertNotNull(categoryId, "Setup failed: no category found");
@@ -80,6 +83,7 @@ public class ProductTests {
                 .when()
                 .get("/brands")
                 .then()
+                .log().ifValidationFails()
                 .statusCode(200)
                 .extract().path("[0].id");
         assertNotNull(brandId, "Setup failed: no brand found");
@@ -88,6 +92,7 @@ public class ProductTests {
                 .when()
                 .get("/products")
                 .then()
+                .log().ifValidationFails()
                 .statusCode(200)
                 .extract().path("data[0].id");
         assertNotNull(firstProductId, "Setup failed: no product found");
@@ -96,6 +101,7 @@ public class ProductTests {
                 .when()
                 .get("/products/{id}", firstProductId)
                 .then()
+                .log().ifValidationFails()
                 .statusCode(200)
                 .extract().path("product_image.id");
         assertNotNull(productImageId, "Setup failed: product has no image");
@@ -133,6 +139,7 @@ public class ProductTests {
                     .when()
                     .get("/products")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(200)
                     .body("data", not(empty()));
         }
@@ -149,6 +156,7 @@ public class ProductTests {
                     .when()
                     .get("/products")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(200)
                     .extract().path("data[0].id");
 
@@ -156,10 +164,11 @@ public class ProductTests {
                     .when()
                     .get("/products/{id}", id)
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(200)
                     .body("id", equalTo(id))
-                    .body("name", not(emptyString()))
-                    .log().body();
+                    .body("name", not(emptyString()));
+                    
         }
 
         @Test
@@ -169,6 +178,7 @@ public class ProductTests {
                     .when()
                     .get("/products/{id}", "00000000-0000-0000-0000-000000000000")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(404);
         }
     }
@@ -185,6 +195,7 @@ public class ProductTests {
                     .when()
                     .post("/products")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(201)
                     .body("name", equalTo(testProductName))
                     .body("id", notNullValue())
@@ -201,6 +212,7 @@ public class ProductTests {
                     .when()
                     .put("/products")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(405);
         }
     }
@@ -218,6 +230,7 @@ public class ProductTests {
                         .when()
                         .delete("/products/{id}", createdProductId)
                         .then()
+                        .log().ifValidationFails()
                         .statusCode(204);
                 createdProductId = null;
             }
@@ -250,6 +263,7 @@ public class ProductTests {
                     .when()
                     .put("/products/{id}", createdProductId)
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(200)
                     .body("success", equalTo(true));
 
@@ -277,6 +291,7 @@ public class ProductTests {
                     .when()
                     .post("/products")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(201)
                     .extract().path("id");
         }
@@ -288,6 +303,7 @@ public class ProductTests {
                         .when()
                         .delete("/products/{id}", createdProductId)
                         .then()
+                        .log().ifValidationFails()
                         .statusCode(204);
                 createdProductId = null;
             }
@@ -301,6 +317,7 @@ public class ProductTests {
                     .when()
                     .delete("/products/{id}", deletedId)
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(204);
             createdProductId = null;
         }
@@ -312,6 +329,7 @@ public class ProductTests {
                     .when()
                     .delete("/products/{id}", createdProductId)
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(401);
         }
 
@@ -322,6 +340,7 @@ public class ProductTests {
                     .when()
                     .delete("/products/{id}", "00000000-0000-0000-0000-000000000000")
                     .then()
+                    .log().ifValidationFails()
                     .statusCode(422);
         }
     }

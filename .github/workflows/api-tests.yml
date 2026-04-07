@@ -15,7 +15,6 @@ jobs:
     - name: Start application
       run: |
         docker compose -f docker-compose.ci.yml up -d
-        sleep 10
       env:
         MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
         MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}

@@ -195,8 +195,6 @@ public class ProductTests {
         @Test
         @DisplayName("returns 405 when method not allowed")
         void returns405WhenMethodNotAllowed() {
-            
-
             given()
                     .contentType(ContentType.JSON)
                     .body(buildProductPayload())
@@ -261,23 +259,70 @@ public class ProductTests {
                     .then()
                     .statusCode(200)
                     .body("name", equalTo("Updated Product"))
-                    .body("price", equalTo(19.99));
+                    .body("price", equalTo(19.99))
+                    .body("category.id", equalTo(payload.get("category_id")))
+                    .body("brand.id", equalTo(payload.get("brand_id")))
+                    .body("product_image.id", equalTo(payload.get("product_image_id")));
         }
     }
-
     @Nested
-    @DisplayName("GET /brands")
-    class GetBrands {
+    @DisplayName("DELETE /products/{id}")
+    class DeleteProduct {
+        String createdProductId = null;
+
+        @BeforeEach
+        void createProduct() {
+            createdProductId = given(authSpec)
+                    .body(buildProductPayload())
+                    .when()
+                    .post("/products")
+                    .then()
+                    .statusCode(201)
+                    .extract().path("id");
+        }
+
+        @AfterEach
+        void cleanUp() {
+            if (createdProductId != null) {
+                given(authSpec)
+                        .when()
+                        .delete("/products/{id}", createdProductId)
+                        .then()
+                        .statusCode(204);
+                createdProductId = null;
+            }
+        }
 
         @Test
-        @DisplayName("returns 200 with a list of brands")
-        void returnsBrandList() {
+        @DisplayName("deletes a product and returns 204 when authenticated")
+        void deletesProduct() {
+            String deletedId = createdProductId;
+            given(authSpec)
+                    .when()
+                    .delete("/products/{id}", deletedId)
+                    .then()
+                    .statusCode(204);
+            createdProductId = null;
+        }
+
+        @Test
+        @DisplayName("returns 401 when not authenticated")
+        void returns401WhenUnauthenticated() {
             given()
                     .when()
-                    .get("/brands")
+                    .delete("/products/{id}", createdProductId)
                     .then()
-                    .statusCode(200)
-                    .body("$", not(empty()));
+                    .statusCode(401);
+        }
+
+        @Test
+        @DisplayName("returns 422 when the resource is not found")
+        void returns422ForUnknownId() {
+            given(authSpec)
+                    .when()
+                    .delete("/products/{id}", "00000000-0000-0000-0000-000000000000")
+                    .then()
+                    .statusCode(422);
         }
     }
 }

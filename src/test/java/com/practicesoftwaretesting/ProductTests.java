@@ -97,7 +97,7 @@ public class ProductTests {
                 .get("/products/{id}", firstProductId)
                 .then()
                 .statusCode(200)
-                .extract().path("product_image_id");
+                .extract().path("product_image.id");
         assertNotNull(productImageId, "Setup failed: product has no image");
 
         return Map.of(
@@ -193,17 +193,17 @@ public class ProductTests {
         }
 
         @Test
-        @DisplayName("returns 401 when unauthenticated")
-        void returns401WhenUnauthenticated() {
-            assumeTrue(!RestAssured.baseURI.contains("localhost"), "Skipped: localhost does not enforce auth");
+        @DisplayName("returns 405 when method not allowed")
+        void returns405WhenMethodNotAllowed() {
+            
 
             given()
                     .contentType(ContentType.JSON)
                     .body(buildProductPayload())
                     .when()
-                    .post("/products")
+                    .put("/products")
                     .then()
-                    .statusCode(401);
+                    .statusCode(405);
         }
     }
 

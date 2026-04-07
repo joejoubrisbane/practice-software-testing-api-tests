@@ -251,11 +251,18 @@ practice-software-testing-api-tests/
 
 **API under test:** https://api.practicesoftwaretesting.com  
 **Local API (Docker):** http://localhost:8091  
-**Local DB (PHPMyAdmin):** http://localhost:8000 (root/root)
+**Local DB:** localhost:3307 (user: `user`, password: see `.env`)
 
-To start the local API:
+To start the local API (run from this project directory):
 ```bash
-cd ~/Desktop/practice-software-testing
-docker compose up -d
-docker compose exec laravel-api php artisan migrate:fresh --seed
+docker compose -f docker-compose.ci.yml up -d
+docker compose -f docker-compose.ci.yml exec laravel-api php artisan migrate:fresh --seed
 ```
+
+> **Note:** If port 3307 is already in use, update the port mapping in `docker-compose.ci.yml` under `mariadb.ports`.  
+> If the database user has permission errors, bring containers down with volumes and restart:
+> ```bash
+> docker compose -f docker-compose.ci.yml down -v
+> docker compose -f docker-compose.ci.yml up -d
+> docker compose -f docker-compose.ci.yml exec laravel-api php artisan migrate:fresh --seed
+> ```

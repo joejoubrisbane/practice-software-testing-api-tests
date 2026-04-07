@@ -12,7 +12,8 @@ services:
     volumes:
       - laravel-app-code:/var/www
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
 
   web:
     image: nginx:alpine
@@ -31,6 +32,11 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: toolshop
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   laravel-app-code:

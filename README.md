@@ -1,59 +1,64 @@
-# Practice Software Testing — API Tests
+# Practice Software Testing — API Test Suite
 
 ![CI](https://github.com/joejoubrisbane/practice-software-testing-api-tests/actions/workflows/api-tests.yml/badge.svg)
 
-API test suite for [practicesoftwaretesting.com](https://api.practicesoftwaretesting.com), written in Java with REST Assured and JUnit 5.
+A professional API test suite for [practicesoftwaretesting.com](https://api.practicesoftwaretesting.com), demonstrating real-world QA engineering practices: dynamic test data management, authentication flows, full CI/CD pipeline, and a reproducible containerised test environment.
+
+**Stack:** Java 17 · REST Assured 5.3 · JUnit 5 · Maven · Docker · GitHub Actions
 
 ---
 
-## What's Under Test
+## Test Coverage
 
-**API:** `https://api.practicesoftwaretesting.com`
+Tests are organised by endpoint and HTTP method using JUnit 5 nested classes.
 
-| Endpoint | Method | Scenario | Expected |
+| Endpoint | Method | Scenario | Status |
 |---|---|---|---|
-| `/products` | GET | List products | 200, non-empty list |
-| `/products/{id}` | GET | Valid product ID | 200, correct fields |
+| `/products` | GET | Returns a paginated list of products | 200 |
+| `/products/{id}` | GET | Returns a single product by valid ID | 200 |
 | `/products/{id}` | GET | Non-existent ID | 404 |
-| `/products` | POST | Authenticated | 201, product created |
-| `/products` | POST | Unauthenticated | 401 |
-| `/products` | PUT | Method not allowed | 405 |
-| `/products/{id}` | PUT | Authenticated update | 200, fields updated |
-| `/products/{id}` | DELETE | Authenticated | 204, then 404 on GET |
-| `/products/{id}` | DELETE | Unauthenticated | 401 |
+| `/products` | POST | Creates a product when authenticated | 201 |
+| `/products` | POST | Rejects unauthenticated requests | 401 |
+| `/products` | PUT | Method not allowed on collection endpoint | 405 |
+| `/products/{id}` | PUT | Updates a product when authenticated | 200 |
+| `/products/{id}` | DELETE | Deletes a product; subsequent GET returns 404 | 204 |
+| `/products/{id}` | DELETE | Rejects unauthenticated requests | 401 |
 | `/products/{id}` | DELETE | Non-existent ID | 422 |
-| `/brands` | GET | List brands | 200, non-empty list |
 
 ---
 
-## Prerequisites
+## Technical Highlights
 
-- Java JDK 17+
-- Maven
-- Docker (for local runs)
+**Dynamic test fixtures** — `buildProductPayload()` fetches real category, brand, and image IDs from the API at runtime instead of hardcoding them, ensuring tests stay valid as seed data changes.
+
+**Token caching** — A Bearer token is obtained once in `@BeforeAll` and reused across all authenticated requests, avoiding redundant login calls per test.
+
+**Isolated test data** — `@BeforeEach` and `@AfterEach` hooks delete any products named `"Test Product"` before and after each test. The `DeleteProduct` suite creates a fresh product in `@BeforeEach` and cleans up in `@AfterEach`, preventing cross-test contamination.
+
+**Environment flexibility** — `BASE_URL` defaults to the live API. Point it at `http://localhost:8091` via `.env` to run against the local Docker stack with zero code changes.
+
+**CI/CD** — GitHub Actions runs the full suite on every push and pull request. The pipeline brings up the Docker stack, waits for MariaDB via health checks, seeds the database, polls the API until ready, then runs `mvn test` and preserves Surefire reports as artefacts.
 
 ---
 
 ## Running the Tests
 
-### Against the live API
+### Against the live API (no setup needed)
 
 ```bash
 mvn test
 ```
 
-By default, tests run against `https://api.practicesoftwaretesting.com`. No local setup needed.
-
 ### Against a local Docker instance
 
-Start the stack from this project directory:
+Start the stack:
 
 ```bash
 docker compose -f docker-compose.ci.yml up -d
 docker compose -f docker-compose.ci.yml exec laravel-api php artisan migrate:fresh --seed
 ```
 
-Then set `BASE_URL` in your `.env` file:
+Set `BASE_URL` in `.env`:
 
 ```
 BASE_URL=http://localhost:8091
@@ -65,7 +70,7 @@ Run the tests:
 mvn test
 ```
 
-> **Troubleshooting:** If the database user has permission errors, the volume may be stale. Wipe it and restart:
+> **If MariaDB permissions fail** (stale volume), wipe and restart:
 > ```bash
 > docker compose -f docker-compose.ci.yml down -v
 > docker compose -f docker-compose.ci.yml up -d
@@ -74,108 +79,41 @@ mvn test
 
 ---
 
-## CI
-
-Tests run automatically on push and pull request to `main` via GitHub Actions.
-
-Required repository secrets:
-
-| Secret | Description |
-|---|---|
-| `MYSQL_ROOT_PASSWORD` | MariaDB root password for Docker |
-| `MYSQL_PASSWORD` | MariaDB user password for Docker |
-| `TEST_ADMIN_EMAIL` | Admin email for login |
-| `TEST_PASSWORD` | Admin password for login |
-
----
-
 ## Project Structure
 
 ```
 practice-software-testing-api-tests/
-├── .github/workflows/api-tests.yml
-├── docker-compose.ci.yml
-├── nginx.ci.conf
-├── pom.xml
-└── src/test/java/com/practicesoftwaretesting/
-    └── ProductTests.java
+├── .github/workflows/api-tests.yml          # CI pipeline
+├── src/test/java/com/practicesoftwaretesting/
+│   └── ProductTests.java                    # All test cases
+├── docker-compose.ci.yml                    # Self-contained test stack
+├── nginx.ci.conf                            # Nginx reverse proxy config
+└── pom.xml                                  # Maven build + dependencies
 ```
 
 ---
 
-## REST Assured Cheat Sheet
+## CI Pipeline
 
-### GET request
-```java
-given()
-    .queryParam("id", 1)        // ?id=1
-.when()
-    .get("/products")
-.then()
-    .statusCode(200)
-    .body("name", equalTo("Hammer"));
-```
+Runs on push and pull request to `main`. Requires four repository secrets:
 
-### POST request
-```java
-given()
-    .contentType("application/json")
-    .body(myObject)             // Java object → serialized to JSON automatically
-.when()
-    .post("/products")
-.then()
-    .statusCode(201);
-```
-
-### PUT request
-```java
-given()
-    .contentType("application/json")
-    .body(myObject)
-.when()
-    .put("/products/1")
-.then()
-    .statusCode(200);
-```
-
-### DELETE request
-```java
-given()
-.when()
-    .delete("/products/1")
-.then()
-    .statusCode(204);
-```
-
-### Extract a value from the response
-```java
-String token = given()
-    .contentType("application/json")
-    .body(loginBody)
-.when()
-    .post("/users/login")
-.then()
-    .extract().path("access_token");
-```
-
-### Authenticated request
-```java
-given()
-    .header("Authorization", "Bearer " + token)
-    .contentType("application/json")
-.when()
-    .get("/protected-endpoint")
-.then()
-    .statusCode(200);
-```
-
-### Test lifecycle annotations
-
-| Annotation | Runs |
+| Secret | Purpose |
 |---|---|
-| `@BeforeAll` | Once before all tests — use for setup (base URL, auth token) |
-| `@BeforeEach` | Before every test — use to create fresh test data |
-| `@AfterEach` | After every test — use to clean up test data |
-| `@Test` | Marks a method as a test case |
+| `MYSQL_ROOT_PASSWORD` | MariaDB root password |
+| `MYSQL_PASSWORD` | MariaDB user password |
+| `TEST_ADMIN_EMAIL` | Admin account for authenticated tests |
+| `TEST_PASSWORD` | Admin account password |
 
-> `@BeforeAll` methods and any fields they use must be `static`.
+The pipeline stages: checkout → start Docker stack → wait for MariaDB (health check) → seed database → wait for API (HTTP poll) → run tests → upload Surefire reports (30-day retention).
+
+---
+
+## Dependencies
+
+| Library | Version | Purpose |
+|---|---|---|
+| REST Assured | 5.3.2 | HTTP client and response assertions |
+| JUnit 5 | 5.10.0 | Test framework, lifecycle annotations, nested classes |
+| Jackson Databind | 2.19.0 | JSON serialisation of request payloads |
+| dotenv-java | 3.0.0 | Environment variable loading with fallback defaults |
+
